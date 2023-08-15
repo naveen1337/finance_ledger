@@ -1,8 +1,9 @@
 // Next.js API route support: https://nextjs.org/docs/api-routes/introduction
 import type { NextApiRequest, NextApiResponse } from 'next'
 import knex from "knex"
-import dbConnection from '../../../config/db_config'
+import dbConnection, { qb } from '../../../config/db_config'
 import Ajv from "ajv"
+import { addSector } from '../../../services/stocks/stock_service'
 
 export default async function handler(
     req: NextApiRequest,
@@ -11,24 +12,27 @@ export default async function handler(
     let connection: any = null
     try {
         const ajv = new Ajv()
-
         if (req.method !== 'POST') {
-            return res.status(405).send({ message: 'Only POST requests allowed' })
+            return res.status(405).json({})
         }
         const valid = ajv.validate(schema, req.body)
         if (!valid) {
-            return res.status(400).json({ success: true, msg: ajv?.errors?.[0]?.message})
+            return res.status(400).json({ success: true, msg: ajv?.errors?.[0]?.message })
         }
-        const connection = await dbConnection.connect()
-        const result = await connection.query('SELECT * from app_control')
-        //   let connection = await dbConnection.getConnection();
-        connection.release()
-        return res.status(200).json({ success: true, data: result.rows })
+        connection = await dbConnection.connect()
+        const [response, err] = await addSector(connection, req.body)
+        if (err) {
+            return res.status(400).json({ success: false, msg: err })
+        }
+        return res.status(200).json({ success: true, data: response })
     }
     catch (err) {
         connection?.release()
         console.log(err)
         return res.status(500).json({ status: false, msg: "exception" })
+    }
+    finally {
+        connection?.release()
     }
 }
 
@@ -36,11 +40,8 @@ export default async function handler(
 const schema = {
     type: "object",
     properties: {
-        amount: { type: "integer" },
-        from_reserve: { type: "boolean" },
-        via: { type: "string" },
-        t_id: { type: "string" }
+        sector_name: { type: "string" },
     },
-    required: ["amount", "from_reserve", "via"],
+    required: ["sector_name"],
     additionalProperties: false
 }
