@@ -41,7 +41,8 @@ function capital(knex){
 function sector(knex){
     return knex.schema.createTable("sector",(qb)=>{
         qb.increments("pk_id"),
-        qb.string("sector_name")
+        qb.string("sector_name").unique().notNullable()
+        qb.string("desc")
     })
 }
 
@@ -49,7 +50,7 @@ function stocks(knex) {
     return knex.schema.createTable("stocks", (qb) => {
         qb.increments("pk_id"),
             qb.string("ticker").notNullable().index().unique(),
-            qb.string("stock_name").notNullable(),
+            qb.string("stock_name").notNullable().unique(),
             qb.integer("ltp_price").notNullable(),
             qb.integer("sector_id").references("pk_id").inTable("sector").index(),
             qb.dateTime("created_at").notNullable().defaultTo(knex.fn.now()),
@@ -60,8 +61,8 @@ function stocks(knex) {
 function watchList(knex) {
     return knex.schema.createTable("watch_list", (qb) => {
             qb.integer("stock_id").primary().references("pk_id").inTable("stocks"),
-            qb.integer("buy_target"),
-            qb.integer("exit_target"),
+            qb.integer("buy_target").notNullable().defaultTo(0),
+            qb.integer("exit_target").notNullable().defaultTo(0),
             qb.dateTime("created_at").notNullable().defaultTo(knex.fn.now()),
             qb.dateTime("updated_at");
     });
@@ -72,6 +73,7 @@ function holding(knex) {
             qb.integer("stock_id").primary().references("pk_id").inTable("stocks"),
             qb.integer("quantity").notNullable(),
             qb.integer("average_price").notNullable(),
+            qb.boolean("is_intraday").notNullable(),
             qb.integer("current_value").notNullable(),
             qb.dateTime("created_at").notNullable().defaultTo(knex.fn.now()),
             qb.dateTime("updated_at");
